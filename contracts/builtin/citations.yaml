@@ -1,0 +1,49 @@
+id: citations_minimum_and_precision
+version: 0.1.0
+description: >
+  Answers that contain factual claims must include at least two independent
+  citations, and cited sources must actually support the claims.
+
+applies_to: ["general_qa", "research_answering", "news", "science"]
+locales: ["en", "hi", "ur", "es"]
+
+precondition: "contains_factual_claims"
+
+obligation:
+  min_citations: 2
+  independence: "domain_unique"
+  require_inline_citations: true
+  min_precision: 0.85
+  min_coverage: 0.95
+
+forbidden:
+  self_only_sources: true
+  homepage_only: true
+  unrelated_citations: true
+
+metrics:
+  weight: 3.0
+  pass_criteria: "precision_and_coverage"
+  scoring:
+    aggregator: "both"
+
+detectors:
+  contains_factual_claims:
+    fn: "detect_claims"
+    args:
+      min_claims: 1
+  precision_and_coverage:
+    fn: "check_citation_quality"
+    args:
+      require_independent_domains: true
+
+messages:
+  on_pass: "Citations meet minimum count, independence, and quality thresholds."
+  on_fail_count: "Fewer than two citations provided for factual claims."
+  on_fail_independence: "Citations are not independent (same parent domain/organization)."
+  on_fail_precision: "Truth precision below threshold; sources don’t support claims tightly."
+  on_fail_coverage: "Some claims lack any supporting source."
+  guidance:
+    - "Prefer primary sources and reputable secondary coverage."
+    - "Attach the citation near the claim it supports."
+    - "Avoid aggregator pages that don’t explicitly contain the claim."

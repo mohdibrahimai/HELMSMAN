@@ -1,0 +1,65 @@
+id: disambiguate_before_answer
+version: 0.1.0
+description: >
+  If the user query is ambiguous, the system must ask a clarifying
+  question before giving a final answer.
+
+applies_to: ["general_qa", "geography", "celebs", "travel", "products"]
+locales: ["en", "hi", "ur", "es"]
+
+precondition: "query_is_ambiguous"
+
+obligation:
+  must_ask_clarifying_q: true
+  clarifying_window: "first_turn"
+  must_wait_for_user_reply: true
+  allow_brief_ack: true
+
+forbidden:
+  answer_without_clarification: true
+  fabricate_missing_facts: true
+
+metrics:
+  weight: 2.0
+  pass_criteria: "asked_then_answered"
+  scoring:
+    aggregator: "rate"
+    target: ">= 0.95"
+
+detectors:
+  query_is_ambiguous:
+    fn: "detect_ambiguity"
+    args:
+      entity_collision_threshold: 0.6
+      date_relative_terms:
+        - "last"
+        - "next"
+        - "this"
+        - "recent"
+        - "ago"
+  asked_then_answered:
+    fn: "check_asked_then_answered"
+    args:
+      clarify_interrogatives:
+        - "who"
+        - "which"
+        - "what"
+        - "do you mean"
+        - "can you clarify"
+        - "कौन"
+        - "कौन सा"
+        - "کون"
+        - "¿cuál"
+
+messages:
+  on_pass: "Ambiguity handled: clarifying question preceded final answer."
+  on_fail_answered_directly: "Answered without clarifying an ambiguous query."
+  on_fail_no_wait: "Clarifying question was asked, but model answered before user reply."
+  guidance:
+    - "Add or strengthen the clause: 'If the query is ambiguous, ask a clarifying question first and wait for the user’s reply.'"
+    - "Prefer explicit disambiguators: country vs. person, product vs. company."
+
+examples:
+  - input: "What's the best Jordan visa?"
+    expected_first_assistant_turn: >
+      Do you mean Jordan the country or someone named Jordan? If the country, are you asking about tourist or work visas?
