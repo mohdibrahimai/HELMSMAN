@@ -1,36 +1,36 @@
-# HELMSMAN — Prompt Contracts + Fuzzing CI for Answer Engines
+# Prompt Contracts + Fuzzing CI for Answer Engines
 
 A production-oriented, working reference that turns prompt work into **engineering discipline**:
 
-- **Contracts (DSL)** to specify expected behavior  
-- **Harness + packs** to stress-test prompts/models  
-- **Evaluators** to measure disambiguation & citation quality  
-- **Diff + CI gates** to block regressions  
+* **Contracts (DSL)** to specify expected behavior
+* **Harness + packs** to stress-test prompts/models
+* **Evaluators** to measure disambiguation & citation quality
+* **Diff + CI gates** to block regressions
 
 > Runs locally with no external APIs; uses a real, local corpus. Plug in your own retriever/LLM later without changing the framework.
 
 ---
 
-## Why Helmsman
+## Why This Matters
 
-- **Maps to “Model Behavior Architect” work:** prompt strategy, edge-case discovery, eval at scale, A/B diffs, go/no-go gates.  
-- **Engineering rigor:** behavior as tests (contracts), fuzzing, and gated releases.  
-- **Explainability:** shows *why* a prompt works via contract outcomes (extend to attribution later).
+* **Maps to “Model Behavior Architect” work:** prompt strategy, edge-case discovery, eval at scale, A/B diffs, go/no-go gates.
+* **Engineering rigor:** behavior as tests (contracts), fuzzing, and gated releases.
+* **Explainability:** shows *why* a prompt works via contract outcomes (extendable to attribution later).
 
 ---
 
-## What’s here (MVP)
+## What’s Included (MVP)
 
-- `contracts/` — YAML **Prompt-Contracts** (`disambiguation.yaml`, `citations.yaml`)
-- `core/` — `orchestrator.py` (run packs → answers → checks → JSONL) and `diff.py`
-- `evals/` — simple detectors/evaluators (disambiguation & citation quality)
-- `rag/` — tiny **retriever** (TF-IDF over `data/corpus.jsonl`) + naive answerer
-- `truth/` — `TruthLens` placeholder (claim splitting; easy to swap for real verifier)
-- `packs/` — smoke test JSONL (ambiguous EN queries)
-- `prompts/` — `v1.yaml` (system prompt with “ask-if-ambiguous” clause)
-- `ci/` — example **gates** and a sample **GitHub Actions** workflow
-- `docker/` — minimal Dockerfile to run the orchestrator
-- `tests/` — basic unit tests for loaders and detectors
+* `contracts/` — YAML **Prompt-Contracts** (`disambiguation.yaml`, `citations.yaml`)
+* `core/` — `orchestrator.py` (run packs → answers → checks → JSONL) and `diff.py`
+* `evals/` — simple detectors/evaluators (disambiguation & citation quality)
+* `rag/` — tiny **retriever** (TF-IDF over `data/corpus.jsonl`) + naive answerer
+* `truth/` — `TruthLens` placeholder (claim splitting; can be swapped for real verifier)
+* `packs/` — smoke test JSONL (ambiguous EN queries)
+* `prompts/` — `v1.yaml` (system prompt with “ask-if-ambiguous” clause)
+* `ci/` — example **gates** and a sample **GitHub Actions** workflow
+* `docker/` — minimal Dockerfile to run the orchestrator
+* `tests/` — basic unit tests for loaders and detectors
 
 ---
 
@@ -52,16 +52,18 @@ python -m helmsman.core.orchestrator \
   --out helmsman/data/runs/run.jsonl
 ```
 
-**Output:** JSONL with, per test case:
-- `input_query`, `retrieved_snippets`, `answer`, `citations`
-- `contract_results`: per-contract `{id, passed, message}`
-- metadata: `run_id`, `model_version`, `prompt_version`, `locale`, `topic`, `seed_id`
+**Output:** JSONL with per test case results:
+
+* `input_query`, `retrieved_snippets`, `answer`, `citations`
+* `contract_results`: per-contract `{id, passed, message}`
+* metadata: `run_id`, `model_version`, `prompt_version`, `locale`, `topic`, `seed_id`
 
 ---
 
-## Contracts (DSL) — example
+## Contracts (DSL) — Example
 
 `contracts/builtin/disambiguation.yaml`
+
 ```yaml
 id: disambiguate_before_answer
 applies_to: ["general_qa","geography","celebs","travel","products"]
@@ -80,6 +82,7 @@ detectors:
 ```
 
 `contracts/builtin/citations.yaml`
+
 ```yaml
 id: citations_minimum_and_precision
 applies_to: ["general_qa","research_answering","news","science"]
@@ -98,9 +101,10 @@ detectors:
 
 ---
 
-## Packs (tests)
+## Packs (Tests)
 
 `packs/smoke_ambiguous_en.jsonl`
+
 ```json
 {"id":"q1","input_query":"What's the best Jordan visa?","locale":"en","topic":"travel"}
 {"id":"q2","input_query":"Tell me about Apple.","locale":"en","topic":"general_qa"}
@@ -108,32 +112,29 @@ detectors:
 {"id":"q4","input_query":"What is Amazon?","locale":"en","topic":"general_qa"}
 ```
 
-Add your own packs (jsonl) with fields: `id`, `input_query`, `locale`, `topic`.
+Add your own packs with fields: `id`, `input_query`, `locale`, `topic`.
 
 ---
 
 ## Retrieval & Answering
 
-- **Retriever:** TF-IDF over `helmsman/data/corpus.jsonl` (you can replace this with your docs or wire a real retriever).  
-- **Answerer:** picks the top snippet’s first sentence (that’s the *placeholder* you’ll swap for your LLM/RAG chain).  
-- **Citations:** snippet IDs are returned as citations; the citations contract ensures count/independence.
-
-> Swap in your LLM by editing `helmsman/rag/answer.py` (keep the `(answer, citations)` return signature).
+* **Retriever:** TF-IDF over `helmsman/data/corpus.jsonl` (replace with your docs or plug in a real retriever).
+* **Answerer:** placeholder that picks the top snippet’s first sentence. Swap this for your LLM/RAG chain.
+* **Citations:** snippet IDs returned as citations; contracts ensure count/independence.
 
 ---
 
-## Evaluation & TruthLens (placeholder)
+## Evaluation & TruthLens (Placeholder)
 
-- `detect_ambiguity`, `check_asked_then_answered` — basic heuristics to verify the **disambiguation** contract.
-- `detect_claims`, `check_citation_quality` — minimal checks: “has ≥2 independent citations”.
-- `truth/truthlens_adapter.py` — splits answer into naive claims; mark as supported if citations exist.  
-  Replace this with your **real verifier** (NLI/entailment + source-snippets).
+* `detect_ambiguity`, `check_asked_then_answered` — verify the **disambiguation** contract.
+* `detect_claims`, `check_citation_quality` — minimal checks for citation count & precision.
+* `truth/truthlens_adapter.py` — splits answers into naive claims, marks as supported if citations exist. Replace with a **real verifier** for production.
 
 ---
 
 ## Diffs & Gates
 
-Compare two runs and enforce simple gates:
+Compare two runs and enforce gates:
 
 ```bash
 python -m helmsman.core.diff \
@@ -142,26 +143,28 @@ python -m helmsman.core.diff \
   --gates helmsman/ci/gates.yaml
 ```
 
-`helmsman/ci/gates.yaml` contains thresholds (min disambiguation rate, max unverifiable, etc.). Extend as needed.
+`helmsman/ci/gates.yaml` defines thresholds (min disambiguation rate, max unverifiable, etc.). Extend as needed.
 
 ---
 
-## CI (example)
+## CI (Example)
 
-Copy `helmsman/ci/workflow_example.yml` to `.github/workflows/helmsman.yml`.  
-It installs deps, runs the smoke pack, produces a run, and compares vs baseline (you can version a baseline or update it per release).
+Use `helmsman/ci/workflow_example.yml` as `.github/workflows/helmsman.yml`. It:
 
-Secrets not required for the MVP (no external API). If you later add an LLM, set your `OPENAI_API_KEY` (or provider key) in repo secrets and modify the workflow.
+* Installs dependencies
+* Runs the smoke pack
+* Produces a run
+* Compares results vs baseline
+
+Secrets not required for MVP (no external API). Add keys later if wiring an LLM.
 
 ---
 
 ## Docker
 
-Build and run the orchestrator in a container:
-
 ```bash
-docker build -t helmsman .
-docker run --rm -v "$PWD:/app" helmsman \
+docker build -t prompt-ci .
+docker run --rm -v "$PWD:/app" prompt-ci \
   --contracts_dir helmsman/contracts/builtin \
   --packs helmsman/packs/smoke_ambiguous_en.jsonl \
   --prompts helmsman/prompts/v1.yaml \
@@ -174,38 +177,38 @@ docker run --rm -v "$PWD:/app" helmsman \
 ## Tests
 
 ```bash
-python -m pytest helmsman/tests -q
+pytest helmsman/tests -q
 ```
 
-(You can extend tests for new detectors/evaluators and contract fixtures.)
+Extend tests for new detectors, evaluators, and contract fixtures.
 
 ---
 
-## Extend toward “wow factor”
+## Extensions & Future Work
 
-- **Behavioral fuzzer:** ambiguity injectors, entity collisions, date flips, multilingual/code-mix, typography noise, long-context truncation, minimal failing seeds.  
-- **Attribution:** leave-one-out/segment ablation over system prompt (token sensitivity heatmaps).  
-- **Multilingual:** add HI/UR/ES packs and locale-aware contracts.  
-- **Reviewer UI:** Streamlit app to explore transcripts, violated contracts, and export a **Release Behavior Report**.
+* **Behavioral fuzzing:** ambiguity injectors, entity collisions, multilingual tests.
+* **Attribution:** sensitivity maps, leave-one-out ablations.
+* **Multilingual coverage:** add HI/UR/ES packs.
+* **Reviewer UI:** Streamlit app to explore transcripts and export **Release Behavior Reports**.
 
 ---
 
 ## Safety & Ethics
 
-- Use abstract, non-dangerous seeds.  
-- Contracts can route to refusals for unsafe topics.  
-- No PII stored; local-only by default.
+* Use safe, abstract test seeds.
+* Contracts can enforce refusals for unsafe topics.
+* Local-only by default; no PII stored.
 
 ---
 
 ## Troubleshooting
 
-- **No results / empty citations:** ensure `helmsman/data/corpus.jsonl` exists or point retriever to your own corpus.  
-- **scikit-learn errors:** use Python 3.11+, reinstall with `pip install -r requirements.txt`.  
-- **CI baseline:** create an initial baseline run and commit it (or store baselines per release).
+* **Empty citations:** ensure `helmsman/data/corpus.jsonl` exists.
+* **scikit-learn issues:** use Python 3.11+, reinstall requirements.
+* **CI baseline:** generate and commit a baseline run before comparison.
 
 ---
 
 ## License
 
-Choose one appropriate to your project (e.g., MIT); add a `LICENSE` file.
+Choose a suitable license (MIT or Apache-2.0 recommended) and include a `LICENSE` file.
